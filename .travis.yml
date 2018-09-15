@@ -1,6 +1,10 @@
 sudo: required
 services:
   - docker
+env:
+  global:
+    - SHA=$(git rev-parse HEAD)
+    - CLOUDSDK_CORE_DISABLE_PROMPTS=1
 before_install:
   #this will unencrypt the iam user account
   - openssl aes-256-cbc -K $encrypted_0c35eebf403c_key -iv $encrypted_0c35eebf403c_iv -in service-account.json.enc -out service-account.json -d
@@ -10,3 +14,17 @@ before_install:
   - gcloud components update kubectl
   #credentials for Google Cloud
   - gcloud auth activate-service-account --key-file service-account.json
+  - cloud config set project multi-k8s-216507
+  - gcloud config set compute/zone us-east1-b
+  - cloud container clusters get-credentials multi-cluster
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+  - docker build -t samirpatelgx/react-test -f ./client/Dockerfile.dev ./client
+
+script:
+  - docker run samirpatelgx/react-test npm test -- --coverage
+
+deploy:
+  provider: script
+  script: bash ./deploy.sh
+  on:
+    branch: master
